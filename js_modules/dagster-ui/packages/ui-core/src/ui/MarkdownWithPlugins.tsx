@@ -1,18 +1,48 @@
 import {Colors} from '@dagster-io/ui-components';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, {defaultSchema} from 'rehype-sanitize';
 import gfm from 'remark-gfm';
 import {createGlobalStyle} from 'styled-components';
 import 'highlight.js/styles/github.css';
 
+
+
+/**
+ * Feature flag to enable extended HTML support in markdown rendering.
+ * When enabled, adds support for:
+ * - Multimedia elements: audio, video, img, source tags with controls and styling
+ * - Table elements: table, thead, tbody, tr, th, td with border and style attributes
+ * - Additional protocols: data URLs, http, and https for media sources
+ * - Raw HTML processing via rehype-raw plugin
+ */
+const extended = true;
+
+const extendedProtocols = ['data', 'http', 'https'];
+const extendedAttributes = {
+  audio: ['src', 'controls'],
+  video: ['src', 'controls'],
+  img: ['src', 'alt'],
+  source: ['src', 'type'],
+  table: ['border', 'style'],
+  thead: [],
+  tbody: [],
+  tr: [],
+  th: ['style'],
+  td: ['style'],
+};
+
 const sanitizeConfig = {
   ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames || []), ...(extended ? Object.getOwnPropertyNames(extendedAttributes) : [])],
   protocols: {
-    src: [...(defaultSchema.protocols?.src ?? []), 'data'],
+    ...defaultSchema.protocols,
+    src: [...(defaultSchema.protocols?.src || []), ...(extended ? extendedProtocols : [])],
   },
   attributes: {
     ...defaultSchema.attributes,
+    ...(extended ? extendedAttributes : {}),
     span: [
       ...(defaultSchema.attributes?.span || []),
       // List of all allowed tokens:
@@ -134,10 +164,11 @@ export const MarkdownWithPlugins = (props: Props) => {
         className="dagster-markdown"
         remarkPlugins={[gfm]}
         rehypePlugins={[
+          ...(extended ? [rehypeRaw] : []),
           [rehypeHighlight, {ignoreMissing: true}],
           [rehypeSanitize, sanitizeConfig],
         ]}
-      />
+      /> 
     </>
   );
 };
